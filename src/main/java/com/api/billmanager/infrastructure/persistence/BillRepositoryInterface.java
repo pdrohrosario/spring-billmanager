@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 
 import com.api.billmanager.domain.model.Bill;
 
+@Repository
 public interface BillRepositoryInterface extends JpaRepository<Bill, Long> {
 
     Optional<Bill> findByIdAndUserEmail(Long id, String user);
