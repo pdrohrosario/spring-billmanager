@@ -6,8 +6,8 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.RequiredArgsConstructor;
 import org.apache.commons.csv.CSVRecord;
-import org.modelmapper.ModelMapper;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,7 +20,6 @@ import com.api.billmanager.domain.exception.BillNotFoundException;
 import com.api.billmanager.domain.exception.CsvFailedImportException;
 import com.api.billmanager.domain.exception.CsvFileException;
 import com.api.billmanager.domain.exception.PaymentDateException;
-import com.api.billmanager.domain.exception.UserNotFoundException;
 import com.api.billmanager.domain.model.Bill;
 import com.api.billmanager.domain.model.User;
 import com.api.billmanager.infrastructure.persistence.BillRepositoryInterface;
@@ -30,29 +29,24 @@ import com.api.billmanager.presentation.dto.response.BillResponse;
 import com.api.billmanager.presentation.dto.response.PaginatedResponse;
 
 @Service
+@RequiredArgsConstructor
 public class BillService {
 
     private final UserService userService;
 
     private final BillRepositoryInterface repository;
 
-    private final ModelMapper mapper;
-
-    public BillService(UserService userService, BillRepositoryInterface repository, ModelMapper mapper) {
-        this.userService = userService;
-        this.repository = repository;
-        this.mapper = mapper;
-    }
-
     public BillResponse create(BillRequest billRequest) {
 
-        this.validateBillDefault(billRequest);
+        this.validatePaymentDateIsBeforeDueDate(billRequest.getPaymentDate(), billRequest.getDueDate());
+        User user = userService.findByEmail(billRequest.getUser().getEmail());
 
-        Bill newBill = this.mapper.map(billRequest, Bill.class);
+        Bill newBill = billRequest.convertRequestToBill();
         newBill.setBillStatus(BillStatus.PENDING);
+        newBill.setUser(user);
         newBill = this.repository.save(newBill);
 
-        return this.mapper.map(newBill, BillResponse.class);
+        return new BillResponse().convertBillToResponse(newBill);
     }
 
     public BillResponse update(BillRequest billUpdate) {
@@ -60,16 +54,17 @@ public class BillService {
         
         this.validateBillAlreadyPaid(existingBill.getBillStatus());
 
-        this.validateBillDefault(billUpdate);
+        this.validatePaymentDateIsBeforeDueDate(billUpdate.getPaymentDate(), billUpdate.getDueDate());
 
+        existingBill.setDescription(billUpdate.getDescription());
         existingBill.setPaymentDate(billUpdate.getPaymentDate());
-        existingBill.setPaymentDate(billUpdate.getDueDate());
+        existingBill.setDueDate(billUpdate.getDueDate());
         existingBill.setAmount(billUpdate.getAmount());
         existingBill.setBillStatus(billUpdate.getBillStatus());
 
         existingBill = this.repository.save(existingBill);
         
-        return this.mapper.map(existingBill, BillResponse.class);
+        return new BillResponse().convertBillToResponse(existingBill);
     }
 
     public BillResponse updateStatus(Long id, String newBillStatus) {
@@ -81,11 +76,11 @@ public class BillService {
 
         existingBill = this.repository.save(existingBill);
 
-        return this.mapper.map(existingBill, BillResponse.class);
+        return new BillResponse().convertBillToResponse(existingBill);
     }
 
     public BillResponse getById(Long id) {
-        return this.mapper.map(this.findById(id), BillResponse.class);
+        return new BillResponse().convertBillToResponse(this.findById(id));
     }
 
     public PaginatedResponse<BillResponse> getBillsByDueDateAndDescription(
@@ -94,7 +89,7 @@ public class BillService {
             Pageable pageable) {
 
         Page<BillResponse> list = this.repository.findByDueDateGreaterThanEqualAndDescriptionContainingIgnoreCase(dueDate,
-                description, pageable).map(bill -> mapper.map(bill, BillResponse.class));
+                description, pageable).map(bill -> new BillResponse().convertBillToResponse(bill));
 
         if (list.isEmpty()) {
             throw new BillNotFoundException("Bills with 'dueDate' " + dueDate + " and 'description' " + description
@@ -118,18 +113,16 @@ public class BillService {
 
         try {
             Iterable<CSVRecord> billListImport = CsvUtils.csvToBillList(file.getInputStream());
-            List<Bill> billsToSave = new ArrayList<>(null);
+            List<Bill> billsToSave = new ArrayList<>();
 
             for (CSVRecord csvRecord : billListImport) {
-                Bill bill = new Bill();
-                
-                bill.setDueDate(LocalDate.parse(csvRecord.get("Due Date")));
-                bill.setPaymentDate(LocalDate.parse(csvRecord.get("Payment Date")));
-                bill.setAmount(new BigDecimal(csvRecord.get("Amount")));
-                bill.setDescription(csvRecord.get("Description"));
-                
-                BillStatus billStatus = EnumUtils.parseEnum(BillStatus.class, csvRecord.get("Bill Status").toUpperCase());
-                bill.setBillStatus(billStatus);
+                Bill bill = Bill.builder()
+                        .dueDate(LocalDate.parse(csvRecord.get("Due Date")))
+                        .paymentDate(LocalDate.parse(csvRecord.get("Payment Date")))
+                        .amount(new BigDecimal(csvRecord.get("Amount")))
+                        .description(csvRecord.get("Description"))
+                        .billStatus(EnumUtils.parseEnum(BillStatus.class, csvRecord.get("Bill Status").toUpperCase()))
+                        .build();
                 
                 Long userId = Long.parseLong(csvRecord.get("User ID"));
                 User user = userService.findById(userId);
@@ -141,7 +134,7 @@ public class BillService {
             repository.saveAll(billsToSave);
 
             PaginatedResponse<BillResponse> response = new PaginatedResponse<>();
-            response.setContent(billsToSave.stream().map(bill -> mapper.map(bill, BillResponse.class)).toList());
+            response.setContent(billsToSave.stream().map(bill -> new BillResponse().convertBillToResponse(bill)).toList());
             response.setPageNumber(1);
             response.setPageSize(billsToSave.size());
             response.setTotalElements(billsToSave.size());
@@ -158,29 +151,20 @@ public class BillService {
                         + " not exist."));
     }
 
-    private void validateBillDefault(BillRequest billRequest ){
-
-        if(!this.userService.validateUserExist(billRequest.getUser().getEmail())){
-            throw new UserNotFoundException("User with email " + billRequest.getUser().getEmail() + " not exist.");
-        }
-        
-        this.validatePaymentDateIsBeforeDueDate(billRequest.getPaymentDate(), billRequest.getDueDate());
-    }
-    
     private void validatePaymentDateIsBeforeDueDate(LocalDate paymenDate, LocalDate dueDate){
         if(paymenDate.isAfter(dueDate)){
-            throw new PaymentDateException("The 'paymentDate' field must have a date before or equal to the 'dueDate' field.");
+            throw new PaymentDateException("The field 'paymentDate' must be a date before or equal to the  field 'dueDate'.");
         }
     }
 
     private void validateBillAlreadyPaid(BillStatus billStatus){
-            if(billStatus.equals(BillStatus.PAID)){
+        if(billStatus.equals(BillStatus.PAID)){
             throw new BillAlreadyPaidException("This bill already paid, you can't modify the status of this bill.");
         }
     }
 
     public BigDecimal getAmountByPeriod(LocalDate startDate,
-            LocalDate endDate) {
+                                        LocalDate endDate) {
         return this.repository.getTotalAmountByPeriod(startDate, endDate);
     }
 
