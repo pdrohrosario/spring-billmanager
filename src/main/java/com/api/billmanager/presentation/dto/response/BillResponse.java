@@ -4,11 +4,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 import com.api.billmanager.domain.enums.BillStatus;
-import com.api.billmanager.presentation.dto.request.UserRequest;
 
+import com.api.billmanager.domain.model.Bill;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import lombok.*;
 
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class BillResponse {
 
     private Long id;
@@ -24,64 +29,17 @@ public class BillResponse {
     @Enumerated(EnumType.STRING)
     private BillStatus billStatus;
 
-    private UserRequest user;
+    private UserResponse user;
 
-    public Long getId() {
-        return id;
+    public BillResponse convertBillToResponse(Bill bill){
+        return BillResponse.builder()
+                .id(bill.getId())
+                .dueDate(bill.getDueDate())
+                .paymentDate(bill.getPaymentDate())
+                .amount(bill.getAmount())
+                .billStatus(bill.getBillStatus())
+                .description(bill.getDescription())
+                .user(new UserResponse().convertUserToResponse(bill.getUser()))
+                .build();
     }
-
-    public LocalDate getDueDate() {
-        return dueDate;
-    }
-
-    public LocalDate getPaymentDate() {
-        return paymentDate;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public BillStatus getBillStatus() {
-        return billStatus;
-    }
-
-    public UserRequest getUser() {
-        return user;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setDueDate(LocalDate dueDate) {
-        this.dueDate = dueDate;
-    }
-
-    public void setPaymentDate(LocalDate paymentDate) {
-        this.paymentDate = paymentDate;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public void setBillStatus(BillStatus billStatus) {
-        this.billStatus = billStatus;
-    }
-
-    public void setUser(UserRequest user) {
-        this.user = user;
-    }
-    
-
-    
 }

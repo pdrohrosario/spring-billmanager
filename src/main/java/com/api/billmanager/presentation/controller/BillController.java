@@ -55,7 +55,7 @@ public class BillController {
         return new ResponseEntity<>(updatedBill, HttpStatus.OK);
     }
 
-    @PatchMapping("status/{id}/newBillStatus")
+    @PatchMapping("{id}/status/{newBillStatus}")
     public ResponseEntity<BillResponse> updateStatus(@PathVariable Long id, @PathVariable String newBillStatus) {
         BillResponse updatedBill = billService.updateStatus(id, newBillStatus);
         return new ResponseEntity<>(updatedBill, HttpStatus.OK);
@@ -71,11 +71,11 @@ public class BillController {
     public ResponseEntity<PaginatedResponse<BillResponse>>  getBillByDueDateAndDescription(
             @RequestParam(name = "dueDate")
             @DateTimeFormat(pattern = "yyyy-MM-dd")
-            @NotNull(message = "O campo 'dueDate' é obrigatório")
+            @NotNull(message = "The 'dueDate' field is required")
             LocalDate dueDate,
 
             @RequestParam(name = "description")
-            @NotBlank(message = "O campo 'description' é obrigatório e deve ser diferent de vazio")
+            @NotBlank(message = "The 'description' field is required")
             String description,
             
             @RequestParam(name = "page", defaultValue = "0") int page,
@@ -94,12 +94,12 @@ public class BillController {
     public ResponseEntity<?> getAmountByPeriod(
             @RequestParam(name = "startDate")
             @DateTimeFormat(pattern = "yyyy-MM-dd")
-            @NotNull(message = "O campo 'startDate' é obrigatório")
+            @NotNull(message = "The 'startDate' field is required")
             LocalDate startDate,
 
             @RequestParam(name = "endDate")
             @DateTimeFormat(pattern = "yyyy-MM-dd")
-            @NotNull(message = "O campo 'endDate' é obrigatório")
+            @NotNull(message = "The 'endDate' field is required")
             LocalDate endDate) {
 
         BigDecimal totalAmount = billService.getAmountByPeriod(startDate, endDate);

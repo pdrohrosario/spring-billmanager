@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import com.api.billmanager.domain.model.User;
 
+@Repository
 public interface UserRepositoryInterface extends JpaRepository<User, Integer> {
     
     Optional<User> findById(Long id);
