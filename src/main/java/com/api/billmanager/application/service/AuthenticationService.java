@@ -1,5 +1,6 @@
 package com.api.billmanager.application.service;
 
+import lombok.AllArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,6 +16,7 @@ import com.api.billmanager.presentation.dto.request.RegisterRequest;
 import com.api.billmanager.presentation.dto.response.AuthenticationResponse;
 
 @Service
+@AllArgsConstructor
 public class AuthenticationService {
 
     private final UserRepositoryInterface repository;
@@ -24,14 +26,6 @@ public class AuthenticationService {
     private final JwtService jwtService;
 
     private final AuthenticationManager authenticationManager;
-
-    public AuthenticationService(UserRepositoryInterface repository, PasswordEncoder passwordEncoder, JwtService jwtService,
-            AuthenticationManager authenticationManager) {
-        this.repository = repository;
-        this.passwordEncoder = passwordEncoder;
-        this.jwtService = jwtService;
-        this.authenticationManager = authenticationManager;
-    }
 
     public AuthenticationResponse register(RegisterRequest request) {
         if(this.repository.findByEmail(request.getEmail()).isPresent()){
