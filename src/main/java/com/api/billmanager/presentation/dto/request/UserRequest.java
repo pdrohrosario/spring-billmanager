@@ -9,6 +9,7 @@ import lombok.*;
 @Data
 @Builder
 @AllArgsConstructor
+@NoArgsConstructor
 public class UserRequest {
 
     @NotBlank(groups = {Insert.class}, message = "The field 'email' is required")

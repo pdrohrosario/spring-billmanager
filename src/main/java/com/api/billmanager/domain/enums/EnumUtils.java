@@ -6,7 +6,7 @@ public class EnumUtils {
         try {
             return Enum.valueOf(enumType, value.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("Value invalid to enum " + enumType.getSimpleName() + ": " + value, e);
+            throw new IllegalArgumentException("Value invalid to enum " + enumType.getSimpleName() + " : " + value, e);
         }
     }
 }

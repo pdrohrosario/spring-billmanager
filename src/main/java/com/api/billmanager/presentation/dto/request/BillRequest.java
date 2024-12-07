@@ -19,6 +19,7 @@ import lombok.*;
 @Builder
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 public class BillRequest {
 
     @NotNull(groups = {Update.class}, message = "The field 'id' is required")
