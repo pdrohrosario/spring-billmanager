@@ -145,6 +145,11 @@ public class BillService {
         }
     }
 
+    public BigDecimal getAmountByPeriod(LocalDate startDate,
+                                        LocalDate endDate) {
+        return this.repository.getTotalAmountByPeriod(startDate, endDate);
+    }
+
     private Bill findById(Long id){
         return repository.findById(id)
                 .orElseThrow(() -> new BillNotFoundException("Bill with id " + id
@@ -161,11 +166,6 @@ public class BillService {
         if(billStatus.equals(BillStatus.PAID)){
             throw new BillAlreadyPaidException("This bill already paid, you can't modify the status of this bill.");
         }
-    }
-
-    public BigDecimal getAmountByPeriod(LocalDate startDate,
-                                        LocalDate endDate) {
-        return this.repository.getTotalAmountByPeriod(startDate, endDate);
     }
 
 }
