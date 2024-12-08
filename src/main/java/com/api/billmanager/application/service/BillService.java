@@ -6,11 +6,14 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.api.billmanager.presentation.dto.interfaces.Insert;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.csv.CSVRecord;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.api.billmanager.domain.enums.BillStatus;
@@ -36,7 +39,7 @@ public class BillService {
 
     private final BillRepositoryInterface repository;
 
-    public BillResponse create(BillRequest billRequest) {
+    public BillResponse create(@Validated(Insert.class) BillRequest billRequest) {
 
         this.validatePaymentDateIsBeforeDueDate(billRequest.getPaymentDate(), billRequest.getDueDate());
         User user = userService.findByEmail(billRequest.getUser().getEmail());
@@ -88,7 +91,7 @@ public class BillService {
             String description,
             Pageable pageable) {
 
-        Page<BillResponse> list = this.repository.findByDueDateGreaterThanEqualAndDescriptionContainingIgnoreCase(dueDate,
+        Page<BillResponse> list = repository.findByDueDateGreaterThanEqualAndDescriptionContainingIgnoreCase(dueDate,
                 description, pageable).map(bill -> new BillResponse().convertBillToResponse(bill));
 
         if (list.isEmpty()) {
@@ -112,37 +115,24 @@ public class BillService {
         }
 
         try {
-            Iterable<CSVRecord> billListImport = CsvUtils.csvToBillList(file.getInputStream());
-            List<Bill> billsToSave = new ArrayList<>();
-
-            for (CSVRecord csvRecord : billListImport) {
-                Bill bill = Bill.builder()
-                        .dueDate(LocalDate.parse(csvRecord.get("Due Date")))
-                        .paymentDate(LocalDate.parse(csvRecord.get("Payment Date")))
-                        .amount(new BigDecimal(csvRecord.get("Amount")))
-                        .description(csvRecord.get("Description"))
-                        .billStatus(EnumUtils.parseEnum(BillStatus.class, csvRecord.get("Bill Status").toUpperCase()))
-                        .build();
-                
-                Long userId = Long.parseLong(csvRecord.get("User ID"));
-                User user = userService.findById(userId);
-                bill.setUser(user);
-
-                billsToSave.add(bill);
-            }
-
-            repository.saveAll(billsToSave);
+            List<BillRequest> billListImport = CsvUtils.csvToBillRequestList(file.getInputStream());
+            List<BillResponse> billSaved = billListImport.stream().map(this::create).toList();
 
             PaginatedResponse<BillResponse> response = new PaginatedResponse<>();
-            response.setContent(billsToSave.stream().map(bill -> new BillResponse().convertBillToResponse(bill)).toList());
+            response.setContent(billSaved);
             response.setPageNumber(1);
-            response.setPageSize(billsToSave.size());
-            response.setTotalElements(billsToSave.size());
+            response.setPageSize(billSaved.size());
+            response.setTotalElements(billSaved.size());
             response.setTotalPages(1);
             return response;
         } catch (IOException e) {
             throw new CsvFailedImportException("Erro import csv file, verify the values and the columns");
         }
+    }
+
+    public BigDecimal getAmountByPeriod(LocalDate startDate,
+                                        LocalDate endDate) {
+        return this.repository.getTotalAmountByPeriod(startDate, endDate);
     }
 
     private Bill findById(Long id){
@@ -161,11 +151,6 @@ public class BillService {
         if(billStatus.equals(BillStatus.PAID)){
             throw new BillAlreadyPaidException("This bill already paid, you can't modify the status of this bill.");
         }
-    }
-
-    public BigDecimal getAmountByPeriod(LocalDate startDate,
-                                        LocalDate endDate) {
-        return this.repository.getTotalAmountByPeriod(startDate, endDate);
     }
 
 }
