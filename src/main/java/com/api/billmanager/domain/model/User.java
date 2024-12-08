@@ -25,6 +25,7 @@ import jakarta.persistence.Table;
 @Data
 @Builder
 @AllArgsConstructor
+@NoArgsConstructor
 @Entity
 @Table(name="users")
 public class User implements UserDetails{
@@ -42,8 +43,6 @@ public class User implements UserDetails{
 
     @OneToMany(mappedBy = "user")
     private List<Bill> bills;
-
-    public User(){}
 
     public User(String email, Long id, String password, Role role) {
         this.email = email;
