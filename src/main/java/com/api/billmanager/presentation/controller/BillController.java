@@ -87,7 +87,7 @@ public class BillController {
 
         PaginatedResponse<BillResponse> bills = billService.getBillsByDueDateAndDescription(dueDate, description, pageable);
 
-        return new ResponseEntity<PaginatedResponse<BillResponse>>(bills, HttpStatus.OK);
+        return new ResponseEntity<>(bills, HttpStatus.OK);
     }
 
     @GetMapping("amount-by-period")
@@ -108,13 +108,9 @@ public class BillController {
     }
 
     @PostMapping("/csv/import")
-    public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file) {
-        try {
-            billService.importCsvBill(file);
-            return ResponseEntity.ok("Bills imported from file csv!");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
-        }
+    public ResponseEntity<PaginatedResponse<BillResponse>> uploadFile(@RequestParam("file") MultipartFile file) {
+        PaginatedResponse<BillResponse> bills = billService.importCsvBill(file);
+        return new ResponseEntity<>(bills, HttpStatus.OK);
     }
 
 }
