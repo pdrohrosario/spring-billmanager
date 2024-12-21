@@ -1,15 +1,12 @@
 package com.api.billmanager.application.service;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 
 import com.api.billmanager.presentation.dto.interfaces.Insert;
-import jakarta.validation.Valid;
+import com.api.billmanager.presentation.dto.request.CsvBillRequest;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.csv.CSVRecord;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,7 +17,6 @@ import com.api.billmanager.domain.enums.BillStatus;
 import com.api.billmanager.domain.enums.EnumUtils;
 import com.api.billmanager.domain.exception.BillAlreadyPaidException;
 import com.api.billmanager.domain.exception.BillNotFoundException;
-import com.api.billmanager.domain.exception.CsvFailedImportException;
 import com.api.billmanager.domain.exception.CsvFileException;
 import com.api.billmanager.domain.exception.PaymentDateException;
 import com.api.billmanager.domain.model.Bill;
@@ -36,6 +32,8 @@ import com.api.billmanager.presentation.dto.response.PaginatedResponse;
 public class BillService {
 
     private final UserService userService;
+
+    private final CsvService csvService;
 
     private final BillRepositoryInterface repository;
 
@@ -114,20 +112,22 @@ public class BillService {
             throw new CsvFileException("The file must be a CSV");
         }
 
-        try {
-            List<BillRequest> billListImport = CsvUtils.csvToBillRequestList(file.getInputStream());
-            List<BillResponse> billSaved = billListImport.stream().map(this::create).toList();
+        List<CsvBillRequest> billListImport = csvService.importCsv(file);
+        List<BillResponse> billSaved = billListImport.stream()
+                .filter(CsvBillRequest::isImported)
+                .map(b -> create(b.getRequest()))
+                .toList();
 
-            PaginatedResponse<BillResponse> response = new PaginatedResponse<>();
-            response.setContent(billSaved);
-            response.setPageNumber(1);
-            response.setPageSize(billSaved.size());
-            response.setTotalElements(billSaved.size());
-            response.setTotalPages(1);
-            return response;
-        } catch (IOException e) {
-            throw new CsvFailedImportException("Erro import csv file, verify the values and the columns");
-        }
+        PaginatedResponse<BillResponse> response = new PaginatedResponse<>();
+        response.setContent(billSaved);
+        response.setMessage(billSaved.size() == billListImport.size() ?
+                "All csv records have been imported.":
+                "Check the log, some csv records have errors and have not been imported.");
+        response.setPageNumber(1);
+        response.setPageSize(billSaved.size());
+        response.setTotalElements(billSaved.size());
+        response.setTotalPages(1);
+        return response;
     }
 
     public BigDecimal getAmountByPeriod(LocalDate startDate,
